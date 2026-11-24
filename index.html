@@ -1,0 +1,1830 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notation Lab — Prefix & Postfix Algorithm Visualizer</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            slate: {
+              850: '#151e32',
+              925: '#0c1322',
+              950: '#080d1a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom subtle animations and scrollbar styling */
+    @keyframes stackPopIn {
+      0% {
+        opacity: 0;
+        transform: translateY(-18px) scale(0.92);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes tokenAppear {
+      0% {
+        opacity: 0;
+        transform: translateX(12px) scale(0.95);
+      }
+      100% {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+      }
+    }
+
+    .animate-stack-in {
+      animation: stackPopIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .animate-token-in {
+      animation: tokenAppear 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.3);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.5);
+    }
+
+    /* Range slider custom styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: transparent;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 16px;
+      width: 16px;
+      border-radius: 50%;
+      background: #3b82f6;
+      cursor: pointer;
+      margin-top: -6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 4px;
+      cursor: pointer;
+      background: rgba(148, 163, 184, 0.3);
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-200 selection:bg-blue-500/30">
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-30 border-b border-slate-200 dark:border-slate-800/80 bg-white/80 dark:bg-slate-925/85 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+          <i data-lucide="layers" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-base sm:text-lg tracking-tight leading-none flex items-center gap-2">
+            NotationLab
+            <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+              Algorithm Visualizer
+            </span>
+          </h1>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Prefix (Polish) &amp; Postfix (RPN) Stack Engine</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Quick Reference Modal Button -->
+        <button id="btn-help" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 transition">
+          <i data-lucide="book-open" class="w-3.5 h-3.5 text-blue-500"></i>
+          <span class="hidden sm:inline">Precedence Rules</span>
+        </button>
+
+        <!-- Theme Toggle -->
+        <button id="btn-theme" aria-label="Toggle theme" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 transition">
+          <i data-lucide="sun" class="w-4 h-4 hidden dark:block text-amber-400"></i>
+          <i data-lucide="moon" class="w-4 h-4 block dark:hidden text-slate-700"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex flex-col gap-6">
+
+    <!-- Control Bar: Mode Selector + Expression Input -->
+    <section class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800/80">
+        <!-- Mode Selector Tabs -->
+        <div class="flex flex-wrap items-center gap-1.5 bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-200/70 dark:border-slate-800" id="mode-tabs">
+          <button data-mode="infix-to-postfix" class="mode-tab active px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5">
+            <i data-lucide="arrow-right-circle" class="w-3.5 h-3.5"></i>
+            Infix &rarr; Postfix
+          </button>
+          <button data-mode="infix-to-prefix" class="mode-tab px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5">
+            <i data-lucide="arrow-left-circle" class="w-3.5 h-3.5"></i>
+            Infix &rarr; Prefix
+          </button>
+          <button data-mode="eval-postfix" class="mode-tab px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5">
+            <i data-lucide="calculator" class="w-3.5 h-3.5"></i>
+            Eval Postfix
+          </button>
+          <button data-mode="eval-prefix" class="mode-tab px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5">
+            <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+            Eval Prefix
+          </button>
+        </div>
+
+        <!-- View Switcher: Stack Visualizer vs Expression Tree -->
+        <div class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-200/70 dark:border-slate-800 self-start lg:self-auto">
+          <button data-view="stack" class="view-tab active px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5">
+            <i data-lucide="database" class="w-3.5 h-3.5"></i>
+            Stack Trace
+          </button>
+          <button data-view="tree" class="view-tab px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5">
+            <i data-lucide="git-fork" class="w-3.5 h-3.5"></i>
+            Expression Tree
+          </button>
+        </div>
+      </div>
+
+      <!-- Expression Input & Preset Row -->
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-3 pt-4 items-end">
+        <!-- Presets Dropdown -->
+        <div class="md:col-span-4">
+          <label for="preset-select" class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+            Preset Examples
+          </label>
+          <div class="relative">
+            <select id="preset-select" class="w-full appearance-none bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80 rounded-xl px-3.5 py-2.5 pr-9 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition">
+              <!-- Populated dynamically based on mode -->
+            </select>
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+          </div>
+        </div>
+
+        <!-- Custom Expression Input -->
+        <div class="md:col-span-6">
+          <div class="flex items-center justify-between mb-1.5">
+            <label for="expr-input" class="block text-xs font-medium text-slate-500 dark:text-slate-400">
+              Custom Expression <span id="input-hint" class="text-slate-400 dark:text-slate-500 font-normal">(e.g., (A + B) * C)</span>
+            </label>
+            <span id="scan-direction-badge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+              Scan: Left &rarr; Right
+            </span>
+          </div>
+          <input id="expr-input" type="text" spellcheck="false" autocomplete="off"
+            class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition"
+            placeholder="Enter expression...">
+        </div>
+
+        <!-- Load Button -->
+        <div class="md:col-span-2">
+          <button id="btn-load" class="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-medium text-sm py-2.5 px-4 rounded-xl shadow-sm shadow-blue-600/20 transition flex items-center justify-center gap-2">
+            <i data-lucide="play-circle" class="w-4 h-4"></i>
+            Load
+          </button>
+        </div>
+      </div>
+
+      <!-- Inline Validation Message Box (Replaces alert()) -->
+      <div id="error-banner" class="hidden mt-3 px-3.5 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2">
+        <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i>
+        <span id="error-text">Invalid expression</span>
+      </div>
+    </section>
+
+    <!-- Playback Controls Bar -->
+    <section class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 shadow-sm flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <button id="btn-reset" title="Reset to Step 0" class="p-2 rounded-xl border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition disabled:opacity-40">
+          <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+        </button>
+        <button id="btn-prev" title="Step Backward" class="p-2 rounded-xl border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition disabled:opacity-40">
+          <i data-lucide="skip-back" class="w-4 h-4"></i>
+        </button>
+        <button id="btn-play" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs sm:text-sm shadow-sm shadow-emerald-600/20 transition flex items-center gap-1.5 min-w-[100px] justify-center">
+          <i id="play-icon" data-lucide="play" class="w-4 h-4"></i>
+          <span id="play-label">Play</span>
+        </button>
+        <button id="btn-next" title="Step Forward" class="p-2 rounded-xl border border-slate-200 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition disabled:opacity-40">
+          <i data-lucide="skip-forward" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Progress Bar & Step Counter -->
+      <div class="flex-1 min-w-[200px] max-w-md flex items-center gap-3">
+        <span id="step-counter" class="text-xs font-mono font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">
+          Step 0 / 0
+        </span>
+        <div class="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+          <div id="progress-bar" class="h-full bg-blue-500 transition-all duration-200 rounded-full" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Animation Speed Slider -->
+      <div class="flex items-center gap-2.5">
+        <i data-lucide="gauge" class="w-4 h-4 text-slate-400"></i>
+        <label for="speed-slider" class="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">Speed</label>
+        <input id="speed-slider" type="range" min="1" max="5" value="3" class="w-24">
+        <span id="speed-label" class="text-xs font-mono text-slate-600 dark:text-slate-300 w-8">1.0x</span>
+      </div>
+    </section>
+
+    <!-- VIEW 1: STACK & TOKEN VISUALIZER -->
+    <div id="view-stack-container" class="flex flex-col gap-6">
+      
+      <!-- Token Strip Card -->
+      <section class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Input Token Stream
+            </h2>
+          </div>
+          <!-- Legend -->
+          <div class="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400">
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-emerald-500/20 border border-emerald-500/50"></span> Operand</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-amber-500/20 border border-amber-500/50"></span> Operator</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-purple-500/20 border border-purple-500/50"></span> Parenthesis</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded ring-2 ring-blue-500 bg-blue-500/20"></span> Active Token</span>
+          </div>
+        </div>
+
+        <!-- Tokens Horizontal Strip -->
+        <div id="token-strip" class="flex flex-wrap items-center gap-2 min-h-[56px] p-3 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200/70 dark:border-slate-800/80">
+          <!-- Tokens rendered here -->
+        </div>
+      </section>
+
+      <!-- Core Visualization Grid: Stack + Live Explanation + Output Queue -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        
+        <!-- Left Column: Animated Stack Container (4 cols) -->
+        <section class="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex flex-col">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
+              <i data-lucide="layers" class="w-4 h-4 text-amber-500"></i>
+              <span id="stack-title">Operator Stack</span>
+            </h2>
+            <span id="stack-count" class="text-xs font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              Size: 0
+            </span>
+          </div>
+
+          <!-- Stack Visual Bucket (Open at top, closed at bottom) -->
+          <div class="flex-1 min-h-[290px] max-h-[360px] flex flex-col justify-end relative bg-slate-50/70 dark:bg-slate-950/70 rounded-b-2xl border-x-2 border-b-2 border-slate-300 dark:border-slate-700 p-3 pt-8 overflow-y-auto">
+            <div class="absolute top-2 left-1/2 -translate-x-1/2 text-[10px] font-mono uppercase tracking-widest text-slate-400 dark:text-slate-500 flex items-center gap-1">
+              <i data-lucide="arrow-down-up" class="w-3 h-3"></i> TOP (LIFO)
+            </div>
+            
+            <div id="stack-items" class="flex flex-col-reverse gap-2 w-full">
+              <!-- Stack items pushed here -->
+            </div>
+
+            <div id="stack-empty-placeholder" class="text-center text-xs font-mono text-slate-400 dark:text-slate-600 my-auto">
+              [ Stack is Empty ]
+            </div>
+          </div>
+        </section>
+
+        <!-- Right Column: Live Rule Explanation & Output/Result Queue (8 cols) -->
+        <div class="lg:col-span-8 flex flex-col gap-6">
+          
+          <!-- Live Explanation Card -->
+          <section class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex-1 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-3">
+                <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                  <i data-lucide="sparkles" class="w-4 h-4 text-blue-500"></i>
+                  Step Execution &amp; Rule Applied
+                </h2>
+                <span id="action-badge" class="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                  READY
+                </span>
+              </div>
+
+              <div id="explanation-box" class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950/90 border border-slate-200/80 dark:border-slate-800 min-h-[104px] flex flex-col justify-center">
+                <p id="explanation-title" class="font-semibold text-sm sm:text-base text-slate-900 dark:text-slate-100 mb-1">
+                  Ready to execute
+                </p>
+                <p id="explanation-detail" class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                  Click "Play" or "Step Forward" to trace each token through the stack algorithm.
+                </p>
+              </div>
+            </div>
+
+            <!-- Algorithm Micro-Note (Prefix Reversal / Operand Order) -->
+            <div id="algo-note" class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <i data-lucide="info" class="w-3.5 h-3.5 text-indigo-400 shrink-0"></i>
+              <span id="algo-note-text">Shunting-yard algorithm processes tokens left-to-right using operator precedence and associativity.</span>
+            </div>
+          </section>
+
+          <!-- Output Queue / Intermediate Result Panel -->
+          <section class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                <i data-lucide="terminal" class="w-4 h-4 text-emerald-500"></i>
+                <span id="output-title">Output Queue (Postfix Expression)</span>
+              </h2>
+              <button id="btn-copy-output" class="text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                <span id="copy-label">Copy</span>
+              </button>
+            </div>
+
+            <!-- Output Tokens Strip -->
+            <div id="output-strip" class="flex flex-wrap items-center gap-2 min-h-[60px] p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 font-mono">
+              <span class="text-xs text-slate-400 dark:text-slate-600">Output will appear here...</span>
+            </div>
+
+            <!-- Final Result Banner (Shown on completion) -->
+            <div id="final-result-banner" class="hidden mt-3 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500"></i>
+                <span id="final-result-label" class="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Final Postfix Expression:</span>
+              </div>
+              <code id="final-result-value" class="text-sm sm:text-base font-mono font-bold text-emerald-700 dark:text-emerald-300"></code>
+            </div>
+          </section>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 2: EXPRESSION TREE VISUALIZER -->
+    <div id="view-tree-container" class="hidden flex-col gap-6">
+      <section class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div>
+            <h2 class="text-base font-bold flex items-center gap-2">
+              <i data-lucide="git-fork" class="w-4 h-4 text-indigo-500"></i>
+              Binary Expression Tree &amp; Traversals
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Every internal node is an operator and every leaf is an operand. Tree traversals naturally produce Prefix, Infix, and Postfix notations.
+            </p>
+          </div>
+
+          <!-- Traversal Buttons -->
+          <div class="flex flex-wrap items-center gap-2">
+            <button data-traversal="preorder" class="traversal-btn px-3 py-1.5 rounded-xl text-xs font-medium bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/20 transition">
+              Pre-order (Prefix)
+            </button>
+            <button data-traversal="inorder" class="traversal-btn px-3 py-1.5 rounded-xl text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 transition">
+              In-order (Infix)
+            </button>
+            <button data-traversal="postorder" class="traversal-btn px-3 py-1.5 rounded-xl text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition">
+              Post-order (Postfix)
+            </button>
+          </div>
+        </div>
+
+        <!-- SVG Canvas for Binary Tree -->
+        <div class="mt-4 relative w-full h-[340px] sm:h-[380px] bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200/80 dark:border-slate-800 overflow-hidden flex items-center justify-center">
+          <svg id="tree-svg" class="w-full h-full" viewBox="0 0 800 380" preserveAspectRatio="xMidYMid meet"></svg>
+          <div id="tree-empty-msg" class="hidden text-xs font-mono text-slate-400">Load a valid expression to render its AST.</div>
+        </div>
+
+        <!-- Traversal Output Strip -->
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[11px] font-semibold uppercase tracking-wider text-indigo-500">Pre-order (Root &rarr; L &rarr; R)</span>
+              <span class="text-[10px] font-mono text-slate-400">Prefix</span>
+            </div>
+            <div id="tree-preorder-out" class="font-mono text-sm font-semibold text-slate-800 dark:text-slate-200 break-all">—</div>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[11px] font-semibold uppercase tracking-wider text-blue-500">In-order (L &rarr; Root &rarr; R)</span>
+              <span class="text-[10px] font-mono text-slate-400">Infix</span>
+            </div>
+            <div id="tree-inorder-out" class="font-mono text-sm font-semibold text-slate-800 dark:text-slate-200 break-all">—</div>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[11px] font-semibold uppercase tracking-wider text-emerald-500">Post-order (L &rarr; R &rarr; Root)</span>
+              <span class="text-[10px] font-mono text-slate-400">Postfix</span>
+            </div>
+            <div id="tree-postorder-out" class="font-mono text-sm font-semibold text-slate-800 dark:text-slate-200 break-all">—</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  </main>
+
+  <!-- Operator Precedence Reference Modal -->
+  <div id="help-modal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+        <h3 class="font-bold text-base flex items-center gap-2">
+          <i data-lucide="book-open" class="w-4 h-4 text-blue-500"></i>
+          Operator Precedence &amp; Associativity
+        </h3>
+        <button id="btn-close-help" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="mt-4 space-y-4 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+        <div class="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+          <table class="w-full text-left border-collapse">
+            <thead class="bg-slate-50 dark:bg-slate-950 text-xs uppercase text-slate-500">
+              <tr>
+                <th class="py-2.5 px-3">Operator</th>
+                <th class="py-2.5 px-3">Operation</th>
+                <th class="py-2.5 px-3">Precedence</th>
+                <th class="py-2.5 px-3">Associativity</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-xs">
+              <tr>
+                <td class="py-2 px-3 font-bold text-amber-500">^</td>
+                <td class="py-2 px-3 font-sans">Exponentiation</td>
+                <td class="py-2 px-3">3 (Highest)</td>
+                <td class="py-2 px-3 font-sans">Right-to-Left</td>
+              </tr>
+              <tr>
+                <td class="py-2 px-3 font-bold text-amber-500">*  /  %</td>
+                <td class="py-2 px-3 font-sans">Multiplication / Division</td>
+                <td class="py-2 px-3">2 (Medium)</td>
+                <td class="py-2 px-3 font-sans">Left-to-Right</td>
+              </tr>
+              <tr>
+                <td class="py-2 px-3 font-bold text-amber-500">+  -</td>
+                <td class="py-2 px-3 font-sans">Addition / Subtraction</td>
+                <td class="py-2 px-3">1 (Lowest)</td>
+                <td class="py-2 px-3 font-sans">Left-to-Right</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="space-y-2 text-xs leading-relaxed bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200/70 dark:border-slate-800">
+          <p><strong class="text-slate-800 dark:text-slate-200">Infix &rarr; Postfix:</strong> Scans Left-to-Right. Operands go directly to output; operators pop higher/equal precedence operators (strictly higher for right-associative <code>^</code>).</p>
+          <p><strong class="text-slate-800 dark:text-slate-200">Infix &rarr; Prefix:</strong> Reverses the infix expression (swapping <code>(</code> and <code>)</code>), runs modified Shunting-yard (handling associativity in reverse), and reverses the final output.</p>
+          <p><strong class="text-slate-800 dark:text-slate-200">Postfix Evaluation:</strong> Scans Left-to-Right. Pushes numbers; on operator, pops <code>B</code> then <code>A</code> and pushes <code>A op B</code>.</p>
+          <p><strong class="text-slate-800 dark:text-slate-200">Prefix Evaluation:</strong> Scans Right-to-Left. Pushes numbers; on operator, pops <code>A</code> then <code>B</code> and pushes <code>A op B</code>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * NotationLab — Prefix & Postfix Algorithm Visualizer
+     * Single-file educational application with step-by-step trace generation,
+     * stack animations, and binary expression tree traversal visualizer.
+     */
+
+    // =========================================================================
+    // 1. CONFIGURATION & PRESETS
+    // =========================================================================
+    const PRESETS = {
+      'infix-to-postfix': [
+        { label: '(A + B) * (C - D)', value: '(A + B) * (C - D)' },
+        { label: '3 + 4 * 2 / (1 - 5) ^ 2', value: '3 + 4 * 2 / (1 - 5) ^ 2' },
+        { label: 'A + B * C', value: 'A + B * C' },
+        { label: 'A ^ B ^ C (Right-Assoc)', value: 'A ^ B ^ C' },
+        { label: '((A + B) * C - D) / E', value: '((A + B) * C - D) / E' }
+      ],
+      'infix-to-prefix': [
+        { label: '(A + B) * (C - D)', value: '(A + B) * (C - D)' },
+        { label: 'A + B * C', value: 'A + B * C' },
+        { label: '(A - B / C) * (A / K - L)', value: '(A - B / C) * (A / K - L)' },
+        { label: '3 + 4 * 2 / (1 - 5) ^ 2', value: '3 + 4 * 2 / (1 - 5) ^ 2' }
+      ],
+      'eval-postfix': [
+        { label: '3 4 + 2 * 7 /  (→ 2)', value: '3 4 + 2 * 7 /' },
+        { label: '5 1 2 + 4 * + 3 -  (→ 14)', value: '5 1 2 + 4 * + 3 -' },
+        { label: '2 3 ^ 4 +  (→ 12)', value: '2 3 ^ 4 +' },
+        { label: '10 2 8 * + 3 -  (→ 23)', value: '10 2 8 * + 3 -' }
+      ],
+      'eval-prefix': [
+        { label: '* + 3 4 - 5 2  (→ 21)', value: '* + 3 4 - 5 2' },
+        { label: '- + 7 * 4 5 + 2 0  (→ 25)', value: '- + 7 * 4 5 + 2 0' },
+        { label: '+ ^ 2 3 * 4 5  (→ 28)', value: '+ ^ 2 3 * 4 5' },
+        { label: '/ * + 10 2 4 6  (→ 8)', value: '/ * + 10 2 4 6' }
+      ]
+    };
+
+    const OPERATORS = {
+      '+': { prec: 1, assoc: 'L', fn: (a, b) => a + b },
+      '-': { prec: 1, assoc: 'L', fn: (a, b) => a - b },
+      '*': { prec: 2, assoc: 'L', fn: (a, b) => a * b },
+      '/': { prec: 2, assoc: 'L', fn: (a, b) => a / b },
+      '%': { prec: 2, assoc: 'L', fn: (a, b) => a % b },
+      '^': { prec: 3, assoc: 'R', fn: (a, b) => Math.pow(a, b) }
+    };
+
+    // =========================================================================
+    // 2. APPLICATION STATE
+    // =========================================================================
+    const state = {
+      mode: 'infix-to-postfix',
+      view: 'stack',
+      expression: '(A + B) * (C - D)',
+      steps: [],
+      currentStep: 0,
+      isPlaying: false,
+      timerId: null,
+      speedMultiplier: 1.0,
+      astRoot: null,
+      traversalTimer: null
+    };
+
+    // =========================================================================
+    // 3. TOKENIZER & VALIDATION
+    // =========================================================================
+    function normalizeExpression(raw) {
+      return raw
+        .replace(/[\u2212\u2013\u2014]/g, '-') // Unicode minus, en-dash, em-dash -> '-'
+        .replace(/[\u00D7\u2217]/g, '*')       // Unicode multiplication ×, ∗ -> '*'
+        .replace(/[\u00F7]/g, '/')             // Unicode division ÷ -> '/'
+        .trim();
+    }
+
+    function isOperator(token) {
+      return Object.prototype.hasOwnProperty.call(OPERATORS, token);
+    }
+
+    function isNumber(token) {
+      return /^-?\d+(\.\d+)?$/.test(token);
+    }
+
+    function isOperand(token) {
+      return /^[A-Za-z0-9_.]+$/.test(token) && !isOperator(token);
+    }
+
+    /**
+     * Tokenizes input expression cleanly.
+     * Supports space-separated multi-digit numbers (e.g., "10 2 +")
+     * as well as compact or spaced infix expressions (e.g., "(A + B) * (C * D - E) * F / G").
+     */
+    function tokenize(expr, mode) {
+      const cleaned = normalizeExpression(expr);
+      if (!cleaned) throw new Error('Please enter an expression.');
+
+      // Validate allowed characters using a clean character class (spaces, letters, digits, _, ., operators, parens)
+      const invalidCharMatch = cleaned.match(/[^A-Za-z0-9_.+\-*/%^()\s]/);
+      if (invalidCharMatch) {
+        throw new Error(`Unsupported character "${invalidCharMatch[0]}". Use letters, numbers, parentheses, and +, -, *, /, ^.`);
+      }
+
+      // For evaluation modes, whitespace separation is standard so multi-digit numbers are unambiguous
+      if (mode === 'eval-postfix' || mode === 'eval-prefix') {
+        const rawTokens = cleaned.split(/\s+/);
+        for (const t of rawTokens) {
+          if (t === '(' || t === ')') {
+            throw new Error('Postfix and Prefix expressions do not use parentheses.');
+          }
+          if (!isOperator(t) && !isNumber(t)) {
+            throw new Error(`Invalid token "${t}". Evaluation modes require numeric operands and operators (+, -, *, /, ^).`);
+          }
+        }
+        return rawTokens;
+      }
+
+      // Infix modes: match multi-digit numbers, variable names, operators, or parentheses
+      const regex = /\d+(?:\.\d+)?|[A-Za-z_][A-Za-z0-9_]*|[+\-*/%^()]/g;
+      const tokens = [];
+      let match;
+      let matchedLength = 0;
+
+      while ((match = regex.exec(cleaned)) !== null) {
+        tokens.push(match[0]);
+        matchedLength += match[0].length;
+      }
+
+      const nonWhitespaceLen = cleaned.replace(/\s+/g, '').length;
+      if (matchedLength !== nonWhitespaceLen || tokens.length === 0) {
+        throw new Error('Could not parse expression tokens. Check number formatting and operators.');
+      }
+
+      // Validate balanced parentheses & basic infix syntax
+      let parenBalance = 0;
+      for (let i = 0; i < tokens.length; i++) {
+        const t = tokens[i];
+        const prev = i > 0 ? tokens[i - 1] : null;
+
+        if (t === '(') {
+          parenBalance++;
+          if (prev && (isOperand(prev) || prev === ')')) {
+            throw new Error(`Missing operator before "(" near "${prev} (".`);
+          }
+        } else if (t === ')') {
+          parenBalance--;
+          if (parenBalance < 0) throw new Error('Unmatched closing parenthesis ")".');
+          if (!prev || prev === '(' || isOperator(prev)) {
+            throw new Error('Invalid token before ")".');
+          }
+        } else if (isOperator(t)) {
+          if (!prev || prev === '(' || isOperator(prev)) {
+            throw new Error(`Operator "${t}" is missing a left operand.`);
+          }
+          if (i === tokens.length - 1) {
+            throw new Error(`Operator "${t}" is missing a right operand.`);
+          }
+        } else if (isOperand(t)) {
+          if (prev && (isOperand(prev) || prev === ')')) {
+            throw new Error(`Missing operator between "${prev}" and "${t}".`);
+          }
+        }
+      }
+
+      if (parenBalance !== 0) {
+        throw new Error('Unclosed parenthesis "(" in expression.');
+      }
+
+      return tokens;
+    }
+
+    // =========================================================================
+    // 4. STEP-BY-STEP ALGORITHM ENGINES
+    // =========================================================================
+
+    /**
+     * Engine A: Infix to Postfix (Shunting-yard Algorithm)
+     */
+    function generateInfixToPostfixSteps(tokens) {
+      const steps = [];
+      const stack = [];
+      const output = [];
+
+      steps.push({
+        tokens,
+        activeIndex: -1,
+        processedIndices: [],
+        stack: [],
+        output: [],
+        action: 'INIT',
+        title: 'Initialized Shunting-Yard Algorithm',
+        detail: 'Scanning tokens from Left to Right. Operands go straight to the output queue; operators wait on the stack based on precedence.',
+        finalResult: null
+      });
+
+      const processed = [];
+
+      for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+
+        if (isOperand(token)) {
+          output.push(token);
+          steps.push({
+            tokens,
+            activeIndex: i,
+            processedIndices: [...processed],
+            stack: [...stack],
+            output: [...output],
+            action: 'OUTPUT',
+            title: `Operand "${token}" → Append to Output`,
+            detail: `Operands maintain their relative order in Postfix notation, so "${token}" is placed directly into the output queue.`,
+            finalResult: null
+          });
+        } else if (token === '(') {
+          stack.push(token);
+          steps.push({
+            tokens,
+            activeIndex: i,
+            processedIndices: [...processed],
+            stack: [...stack],
+            output: [...output],
+            action: 'PUSH',
+            title: 'Left Parenthesis "(" → Push to Stack',
+            detail: 'Opening parentheses act as a sub-expression boundary on the operator stack until a matching ")" is encountered.',
+            finalResult: null
+          });
+        } else if (token === ')') {
+          steps.push({
+            tokens,
+            activeIndex: i,
+            processedIndices: [...processed],
+            stack: [...stack],
+            output: [...output],
+            action: 'SCAN',
+            title: 'Right Parenthesis ")" Encountered',
+            detail: 'Pop operators from the stack to the output queue until the matching "(" is found at the top of the stack.',
+            finalResult: null
+          });
+
+          while (stack.length > 0 && stack[stack.length - 1] !== '(') {
+            const popped = stack.pop();
+            output.push(popped);
+            steps.push({
+              tokens,
+              activeIndex: i,
+              processedIndices: [...processed],
+              stack: [...stack],
+              output: [...output],
+              action: 'POP → OUTPUT',
+              title: `Pop "${popped}" → Append to Output`,
+              detail: `Popping operator "${popped}" inside parentheses and moving it to the output queue.`,
+              finalResult: null
+            });
+          }
+
+          if (stack.length > 0 && stack[stack.length - 1] === '(') {
+            stack.pop();
+            steps.push({
+              tokens,
+              activeIndex: i,
+              processedIndices: [...processed],
+              stack: [...stack],
+              output: [...output],
+              action: 'DISCARD "("',
+              title: 'Discard Matching "("',
+              detail: 'Found matching "(" on the stack. Both parentheses are discarded since Postfix notation needs no grouping symbols.',
+              finalResult: null
+            });
+          }
+        } else if (isOperator(token)) {
+          const op1 = OPERATORS[token];
+
+          while (stack.length > 0 && isOperator(stack[stack.length - 1])) {
+            const topOp = stack[stack.length - 1];
+            const op2 = OPERATORS[topOp];
+            const shouldPop = (op1.assoc === 'L' && op1.prec <= op2.prec) ||
+                              (op1.assoc === 'R' && op1.prec < op2.prec);
+
+            if (shouldPop) {
+              stack.pop();
+              output.push(topOp);
+              steps.push({
+                tokens,
+                activeIndex: i,
+                processedIndices: [...processed],
+                stack: [...stack],
+                output: [...output],
+                action: 'POP → OUTPUT',
+                title: `Pop Higher/Equal Precedence "${topOp}"`,
+                detail: `Stack top "${topOp}" (prec ${op2.prec}) has ${op2.prec > op1.prec ? 'higher' : 'equal left-associative'} precedence than "${token}" (prec ${op1.prec}). Popping "${topOp}" to output.`,
+                finalResult: null
+              });
+            } else {
+              break;
+            }
+          }
+
+          stack.push(token);
+          steps.push({
+            tokens,
+            activeIndex: i,
+            processedIndices: [...processed],
+            stack: [...stack],
+            output: [...output],
+            action: 'PUSH',
+            title: `Push Operator "${token}" onto Stack`,
+            detail: `Operator "${token}" (precedence ${op1.prec}) is pushed onto the stack.`,
+            finalResult: null
+          });
+        }
+
+        processed.push(i);
+      }
+
+      // Drain remaining operators from stack
+      while (stack.length > 0) {
+        const popped = stack.pop();
+        output.push(popped);
+        steps.push({
+          tokens,
+          activeIndex: -1,
+          processedIndices: [...processed],
+          stack: [...stack],
+          output: [...output],
+          action: 'DRAIN STACK',
+          title: `End of Input → Pop Remaining "${popped}"`,
+          detail: `All input tokens have been scanned. Popping remaining operator "${popped}" from the stack to the output queue.`,
+          finalResult: null
+        });
+      }
+
+      steps.push({
+        tokens,
+        activeIndex: -1,
+        processedIndices: [...processed],
+        stack: [],
+        output: [...output],
+        action: 'COMPLETE',
+        title: 'Postfix Conversion Complete',
+        detail: 'The operator stack is empty and all tokens have been processed into Reverse Polish Notation.',
+        finalResult: output.join(' ')
+      });
+
+      return steps;
+    }
+
+    /**
+     * Engine B: Infix to Prefix Conversion
+     * Scans Right-to-Left (or reverses infix with swapped parens, applies modified shunting-yard, then reverses result)
+     */
+    function generateInfixToPrefixSteps(tokens) {
+      const steps = [];
+      const stack = [];
+      const output = []; // Built from right-to-left (displayed in final prefix order)
+
+      steps.push({
+        tokens,
+        activeIndex: -1,
+        processedIndices: [],
+        stack: [],
+        output: [],
+        action: 'INIT',
+        title: 'Initialized Infix → Prefix Conversion',
+        detail: 'Scanning Infix expression from Right to Left. Closing ")" acts as opening boundary, and output tokens are prepended to form Prefix notation.',
+        finalResult: null
+      });
+
+      const processed = [];
+
+      for (let i = tokens.length - 1; i >= 0; i--) {
+        const token = tokens[i];
+
+        if (isOperand(token)) {
+          output.unshift(token);
+          steps.push({
+            tokens,
+            activeIndex: i,
+            processedIndices: [...processed],
+            stack: [...stack],
+            output: [...output],
+            action: 'PREPEND',
+            title: `Operand "${token}" → Prepend to Prefix Output`,
+            detail: `Scanning Right-to-Left: operand "${token}" is prepended to the front of the output sequence.`,
+            finalResult: null
+          });
+        } else if (token === ')') {
+          stack.push(token);
+          steps.push({
+            tokens,
+            activeIndex: i,
+            processedIndices: [...processed],
+            stack: [...stack],
+            output: [...output],
+            action: 'PUSH',
+            title: 'Closing Parenthesis ")" → Push to Stack',
+            detail: 'Scanning Right-to-Left, ")" marks the start of a parenthesized group on the stack.',
+            finalResult: null
+          });
+        } else if (token === '(') {
+          steps.push({
+            tokens,
+            activeIndex: i,
+            processedIndices: [...processed],
+            stack: [...stack],
+            output: [...output],
+            action: 'SCAN',
+            title: 'Opening Parenthesis "(" Encountered',
+            detail: 'Pop operators from the stack and prepend them to output until the matching ")" is reached.',
+            finalResult: null
+          });
+
+          while (stack.length > 0 && stack[stack.length - 1] !== ')') {
+            const popped = stack.pop();
+            output.unshift(popped);
+            steps.push({
+              tokens,
+              activeIndex: i,
+              processedIndices: [...processed],
+              stack: [...stack],
+              output: [...output],
+              action: 'POP → PREPEND',
+              title: `Pop "${popped}" → Prepend to Output`,
+              detail: `Popping "${popped}" inside parentheses and prepending it to the Prefix output.`,
+              finalResult: null
+            });
+          }
+
+          if (stack.length > 0 && stack[stack.length - 1] === ')') {
+            stack.pop();
+            steps.push({
+              tokens,
+              activeIndex: i,
+              processedIndices: [...processed],
+              stack: [...stack],
+              output: [...output],
+              action: 'DISCARD ")"',
+              title: 'Discard Matching ")"',
+              detail: 'Found matching ")" on stack. Both parentheses are discarded.',
+              finalResult: null
+            });
+          }
+        } else if (isOperator(token)) {
+          const op1 = OPERATORS[token];
+
+          // In Right-to-Left scan, left-associative operators pop only strictly higher precedence;
+          // right-associative (^) pops higher or equal precedence.
+          while (stack.length > 0 && isOperator(stack[stack.length - 1])) {
+            const topOp = stack[stack.length - 1];
+            const op2 = OPERATORS[topOp];
+            const shouldPop = (op1.assoc === 'L' && op1.prec < op2.prec) ||
+                              (op1.assoc === 'R' && op1.prec <= op2.prec);
+
+            if (shouldPop) {
+              stack.pop();
+              output.unshift(topOp);
+              steps.push({
+                tokens,
+                activeIndex: i,
+                processedIndices: [...processed],
+                stack: [...stack],
+                output: [...output],
+                action: 'POP → PREPEND',
+                title: `Pop "${topOp}" → Prepend to Output`,
+                detail: `Stack top "${topOp}" (prec ${op2.prec}) takes priority over "${token}" (prec ${op1.prec}) in Right-to-Left scan. Prepending "${topOp}".`,
+                finalResult: null
+              });
+            } else {
+              break;
+            }
+          }
+
+          stack.push(token);
+          steps.push({
+            tokens,
+            activeIndex: i,
+            processedIndices: [...processed],
+            stack: [...stack],
+            output: [...output],
+            action: 'PUSH',
+            title: `Push Operator "${token}" onto Stack`,
+            detail: `Operator "${token}" (precedence ${op1.prec}) is pushed onto the stack.`,
+            finalResult: null
+          });
+        }
+
+        processed.push(i);
+      }
+
+      while (stack.length > 0) {
+        const popped = stack.pop();
+        output.unshift(popped);
+        steps.push({
+          tokens,
+          activeIndex: -1,
+          processedIndices: [...processed],
+          stack: [...stack],
+          output: [...output],
+          action: 'DRAIN STACK',
+          title: `Pop Remaining "${popped}" → Prepend`,
+          detail: `All input tokens scanned. Popping "${popped}" and prepending it to complete the Prefix expression.`,
+          finalResult: null
+        });
+      }
+
+      steps.push({
+        tokens,
+        activeIndex: -1,
+        processedIndices: [...processed],
+        stack: [],
+        output: [...output],
+        action: 'COMPLETE',
+        title: 'Prefix Conversion Complete',
+        detail: 'All operators have been prepended in Polish Notation order.',
+        finalResult: output.join(' ')
+      });
+
+      return steps;
+    }
+
+    /**
+     * Engine C: Postfix Evaluation (Left-to-Right Stack Evaluation)
+     */
+    function generatePostfixEvalSteps(tokens) {
+      const steps = [];
+      const stack = [];
+      const history = [];
+
+      steps.push({
+        tokens,
+        activeIndex: -1,
+        processedIndices: [],
+        stack: [],
+        output: [],
+        action: 'INIT',
+        title: 'Initialized Postfix Evaluation',
+        detail: 'Scanning Left-to-Right. Push operands onto the value stack; when an operator appears, pop B then A and push (A op B).',
+        finalResult: null
+      });
+
+      const processed = [];
+
+      for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+
+        if (isNumber(token)) {
+          const val = parseFloat(token);
+          stack.push(val);
+          steps.push({
+            tokens,
+            activeIndex: i,
+            processedIndices: [...processed],
+            stack: [...stack],
+            output: [...history],
+            action: 'PUSH VALUE',
+            title: `Push Operand ${val} onto Value Stack`,
+            detail: `Numeric token "${token}" is pushed onto the operand stack.`,
+            finalResult: null
+          });
+        } else if (isOperator(token)) {
+          if (stack.length < 2) {
+            throw new Error(`Invalid Postfix expression: insufficient operands for operator "${token}".`);
+          }
+          const b = stack.pop();
+          const a = stack.pop();
+          if (token === '/' && b === 0) {
+            throw new Error('Division by zero encountered during evaluation.');
+          }
+          const rawRes = OPERATORS[token].fn(a, b);
+          const res = Number.isInteger(rawRes) ? rawRes : parseFloat(rawRes.toFixed(4));
+
+          stack.push(res);
+          const calcExpr = `${a} ${token} ${b} = ${res}`;
+          history.push(calcExpr);
+
+          steps.push({
+            tokens,
+            activeIndex: i,
+            processedIndices: [...processed],
+            stack: [...stack],
+            output: [...history],
+            action: 'EVALUATE',
+            title: `Evaluate ${a} ${token} ${b} = ${res}`,
+            detail: `Popped right operand B = ${b} and left operand A = ${a}. Computed ${a} ${token} ${b} = ${res} and pushed result back onto stack.`,
+            finalResult: null
+          });
+        }
+        processed.push(i);
+      }
+
+      if (stack.length !== 1) {
+        throw new Error('Invalid Postfix expression: leftover operands remain on the stack.');
+      }
+
+      steps.push({
+        tokens,
+        activeIndex: -1,
+        processedIndices: [...processed],
+        stack: [...stack],
+        output: [...history],
+        action: 'COMPLETE',
+        title: `Evaluation Complete: Result = ${stack[0]}`,
+        detail: `All tokens evaluated. The single remaining value on the stack (${stack[0]}) is the final answer.`,
+        finalResult: String(stack[0])
+      });
+
+      return steps;
+    }
+
+    /**
+     * Engine D: Prefix Evaluation (Right-to-Left Stack Evaluation)
+     */
+    function generatePrefixEvalSteps(tokens) {
+      const steps = [];
+      const stack = [];
+      const history = [];
+
+      steps.push({
+        tokens,
+        activeIndex: -1,
+        processedIndices: [],
+        stack: [],
+        output: [],
+        action: 'INIT',
+        title: 'Initialized Prefix Evaluation',
+        detail: 'Scanning Right-to-Left. Push operands onto the value stack; when an operator appears, pop A then B and push (A op B).',
+        finalResult: null
+      });
+
+      const processed = [];
+
+      for (let i = tokens.length - 1; i >= 0; i--) {
+        const token = tokens[i];
+
+        if (isNumber(token)) {
+          const val = parseFloat(token);
+          stack.push(val);
+          steps.push({
+            tokens,
+            activeIndex: i,
+            processedIndices: [...processed],
+            stack: [...stack],
+            output: [...history],
+            action: 'PUSH VALUE',
+            title: `Push Operand ${val} onto Value Stack`,
+            detail: `Scanning Right-to-Left: numeric token "${token}" is pushed onto the operand stack.`,
+            finalResult: null
+          });
+        } else if (isOperator(token)) {
+          if (stack.length < 2) {
+            throw new Error(`Invalid Prefix expression: insufficient operands for operator "${token}".`);
+          }
+          const a = stack.pop();
+          const b = stack.pop();
+          if (token === '/' && b === 0) {
+            throw new Error('Division by zero encountered during evaluation.');
+          }
+          const rawRes = OPERATORS[token].fn(a, b);
+          const res = Number.isInteger(rawRes) ? rawRes : parseFloat(rawRes.toFixed(4));
+
+          stack.push(res);
+          const calcExpr = `${a} ${token} ${b} = ${res}`;
+          history.push(calcExpr);
+
+          steps.push({
+            tokens,
+            activeIndex: i,
+            processedIndices: [...processed],
+            stack: [...stack],
+            output: [...history],
+            action: 'EVALUATE',
+            title: `Evaluate ${a} ${token} ${b} = ${res}`,
+            detail: `Popped first operand A = ${a} and second operand B = ${b}. Computed ${a} ${token} ${b} = ${res} and pushed result back onto stack.`,
+            finalResult: null
+          });
+        }
+        processed.push(i);
+      }
+
+      if (stack.length !== 1) {
+        throw new Error('Invalid Prefix expression: leftover operands remain on the stack.');
+      }
+
+      steps.push({
+        tokens,
+        activeIndex: -1,
+        processedIndices: [...processed],
+        stack: [...stack],
+        output: [...history],
+        action: 'COMPLETE',
+        title: `Evaluation Complete: Result = ${stack[0]}`,
+        detail: `All tokens evaluated. The single remaining value on the stack (${stack[0]}) is the final answer.`,
+        finalResult: String(stack[0])
+      });
+
+      return steps;
+    }
+
+    // =========================================================================
+    // 5. BINARY EXPRESSION TREE BUILDER & RENDERER
+    // =========================================================================
+    function buildExpressionTree(tokens, mode) {
+      let postfixTokens = [];
+
+      if (mode === 'eval-postfix') {
+        postfixTokens = [...tokens];
+      } else if (mode === 'eval-prefix') {
+        // Convert prefix to AST directly from right to left
+        const nodeStack = [];
+        for (let i = tokens.length - 1; i >= 0; i--) {
+          const t = tokens[i];
+          if (isOperator(t)) {
+            const left = nodeStack.pop();
+            const right = nodeStack.pop();
+            nodeStack.push({ val: t, left, right, id: `node-${i}` });
+          } else {
+            nodeStack.push({ val: t, left: null, right: null, id: `node-${i}` });
+          }
+        }
+        return nodeStack[0] || null;
+      } else {
+        // Infix -> convert to postfix first via shunting yard
+        const opStack = [];
+        for (const t of tokens) {
+          if (isOperand(t)) {
+            postfixTokens.push(t);
+          } else if (t === '(') {
+            opStack.push(t);
+          } else if (t === ')') {
+            while (opStack.length && opStack[opStack.length - 1] !== '(') {
+              postfixTokens.push(opStack.pop());
+            }
+            opStack.pop();
+          } else if (isOperator(t)) {
+            const o1 = OPERATORS[t];
+            while (opStack.length && isOperator(opStack[opStack.length - 1])) {
+              const o2 = OPERATORS[opStack[opStack.length - 1]];
+              if ((o1.assoc === 'L' && o1.prec <= o2.prec) || (o1.assoc === 'R' && o1.prec < o2.prec)) {
+                postfixTokens.push(opStack.pop());
+              } else break;
+            }
+            opStack.push(t);
+          }
+        }
+        while (opStack.length) postfixTokens.push(opStack.pop());
+      }
+
+      // Build AST from Postfix tokens
+      const stack = [];
+      postfixTokens.forEach((t, idx) => {
+        if (isOperator(t)) {
+          const right = stack.pop();
+          const left = stack.pop();
+          stack.push({ val: t, left, right, id: `node-${idx}` });
+        } else {
+          stack.push({ val: t, left: null, right: null, id: `node-${idx}` });
+        }
+      });
+      return stack[0] || null;
+    }
+
+    function getTraversals(root) {
+      const pre = [], inOrd = [], post = [];
+      function traverse(node) {
+        if (!node) return;
+        pre.push(node);
+        if (node.left && node.right) inOrd.push({ val: '(', id: null });
+        traverse(node.left);
+        inOrd.push(node);
+        traverse(node.right);
+        if (node.left && node.right) inOrd.push({ val: ')', id: null });
+        post.push(node);
+      }
+      traverse(root);
+      return { pre, inOrd, post };
+    }
+
+    function renderExpressionTree(root, highlightedNodeId = null) {
+      const svg = document.getElementById('tree-svg');
+      const emptyMsg = document.getElementById('tree-empty-msg');
+      svg.innerHTML = '';
+
+      if (!root) {
+        emptyMsg.classList.remove('hidden');
+        document.getElementById('tree-preorder-out').textContent = '—';
+        document.getElementById('tree-inorder-out').textContent = '—';
+        document.getElementById('tree-postorder-out').textContent = '—';
+        return;
+      }
+      emptyMsg.classList.add('hidden');
+
+      // Update traversal text outputs
+      const { pre, inOrd, post } = getTraversals(root);
+      document.getElementById('tree-preorder-out').textContent = pre.map(n => n.val).join(' ');
+      document.getElementById('tree-inorder-out').textContent = inOrd.map(n => n.val).join(' ');
+      document.getElementById('tree-postorder-out').textContent = post.map(n => n.val).join(' ');
+
+      // Calculate tree depth for vertical spacing
+      function getDepth(n) {
+        if (!n) return 0;
+        return 1 + Math.max(getDepth(n.left), getDepth(n.right));
+      }
+      const depth = getDepth(root);
+      const width = 860;
+      const height = Math.max(380, depth * 72 + 40);
+      svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      const levelHeight = Math.min(72, (height - 80) / Math.max(1, depth - 1));
+
+      // Assign in-order horizontal slot indices so deep asymmetric trees never overlap
+      let leafCounter = 0;
+      const xSlots = new Map();
+      function assignSlots(node) {
+        if (!node) return;
+        assignSlots(node.left);
+        xSlots.set(node, leafCounter++);
+        assignSlots(node.right);
+      }
+      assignSlots(root);
+
+      const totalNodes = Math.max(1, leafCounter);
+      const horizontalPadding = 56;
+      const usableWidth = width - horizontalPadding * 2;
+
+      const edges = [];
+      const nodes = [];
+
+      function layout(node, level) {
+        if (!node) return null;
+        const slot = xSlots.get(node);
+        const x = totalNodes === 1
+          ? width / 2
+          : horizontalPadding + (slot / (totalNodes - 1)) * usableWidth;
+        const y = 44 + level * levelHeight;
+
+        nodes.push({ node, x, y });
+
+        if (node.left) {
+          const leftPos = layout(node.left, level + 1);
+          edges.push({ x1: x, y1: y, x2: leftPos.x, y2: leftPos.y });
+        }
+        if (node.right) {
+          const rightPos = layout(node.right, level + 1);
+          edges.push({ x1: x, y1: y, x2: rightPos.x, y2: rightPos.y });
+        }
+        return { x, y };
+      }
+
+      layout(root, 0);
+
+      const isDark = document.documentElement.classList.contains('dark');
+      const edgeStroke = isDark ? '#334155' : '#cbd5e1';
+
+      // Draw edges
+      edges.forEach(e => {
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', e.x1);
+        line.setAttribute('y1', e.y1);
+        line.setAttribute('x2', e.x2);
+        line.setAttribute('y2', e.y2);
+        line.setAttribute('stroke', edgeStroke);
+        line.setAttribute('stroke-width', '2.5');
+        svg.appendChild(line);
+      });
+
+      // Draw nodes
+      nodes.forEach(({ node, x, y }) => {
+        const isOp = isOperator(node.val);
+        const isHighlighted = highlightedNodeId === node.id;
+
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('transform', `translate(${x}, ${y})`);
+
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('r', isHighlighted ? '24' : '20');
+        
+        let fill, stroke, textFill;
+        if (isHighlighted) {
+          fill = '#3b82f6';
+          stroke = '#93c5fd';
+          textFill = '#ffffff';
+        } else if (isOp) {
+          fill = isDark ? '#451a03' : '#fef3c7';
+          stroke = '#f59e0b';
+          textFill = isDark ? '#fbbf24' : '#b45309';
+        } else {
+          fill = isDark ? '#064e3b' : '#d1fae5';
+          stroke = '#10b981';
+          textFill = isDark ? '#34d399' : '#047857';
+        }
+
+        circle.setAttribute('fill', fill);
+        circle.setAttribute('stroke', stroke);
+        circle.setAttribute('stroke-width', isHighlighted ? '3.5' : '2');
+        circle.style.transition = 'all 0.2s ease';
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('dy', '0.35em');
+        text.setAttribute('fill', textFill);
+        text.setAttribute('font-family', 'JetBrains Mono, monospace');
+        text.setAttribute('font-weight', '700');
+        text.setAttribute('font-size', '14');
+        text.textContent = node.val;
+
+        g.appendChild(circle);
+        g.appendChild(text);
+        svg.appendChild(g);
+      });
+    }
+
+    function animateTreeTraversal(type) {
+      if (!state.astRoot) return;
+      if (state.traversalTimer) clearInterval(state.traversalTimer);
+
+      const { pre, inOrd, post } = getTraversals(state.astRoot);
+      const sequence = (type === 'preorder' ? pre : type === 'inorder' ? inOrd : post)
+        .filter(n => n.id !== null);
+
+      let idx = 0;
+      renderExpressionTree(state.astRoot, sequence[0]?.id);
+
+      state.traversalTimer = setInterval(() => {
+        idx++;
+        if (idx >= sequence.length) {
+          clearInterval(state.traversalTimer);
+          state.traversalTimer = null;
+          setTimeout(() => renderExpressionTree(state.astRoot, null), 400);
+          return;
+        }
+        renderExpressionTree(state.astRoot, sequence[idx].id);
+      }, 550);
+    }
+
+    // =========================================================================
+    // 6. UI RENDERING & STATE SYNCHRONIZATION
+    // =========================================================================
+    function getTokenColorClasses(token) {
+      if (token === '(' || token === ')') {
+        return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30';
+      }
+      if (isOperator(token)) {
+        return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30';
+      }
+      return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
+    }
+
+    function renderCurrentStep() {
+      const step = state.steps[state.currentStep];
+      if (!step) return;
+
+      // 1. Update Progress & Playback Buttons
+      const total = state.steps.length - 1;
+      document.getElementById('step-counter').textContent = `Step ${state.currentStep} / ${total}`;
+      const pct = total > 0 ? (state.currentStep / total) * 100 : 0;
+      document.getElementById('progress-bar').style.width = `${pct}%`;
+
+      document.getElementById('btn-prev').disabled = state.currentStep === 0;
+      document.getElementById('btn-reset').disabled = state.currentStep === 0;
+      document.getElementById('btn-next').disabled = state.currentStep >= total;
+
+      // 2. Render Token Strip
+      const tokenStrip = document.getElementById('token-strip');
+      tokenStrip.innerHTML = '';
+
+      step.tokens.forEach((tok, idx) => {
+        const isActive = idx === step.activeIndex;
+        const isProcessed = step.processedIndices.includes(idx);
+
+        const el = document.createElement('div');
+        el.className = `px-3 py-2 rounded-xl font-mono text-sm font-semibold border transition-all duration-200 select-none ${getTokenColorClasses(tok)} ${
+          isActive
+            ? 'ring-2 ring-blue-500 scale-110 shadow-md shadow-blue-500/20 z-10'
+            : isProcessed
+              ? 'opacity-40 grayscale-[40%]'
+              : 'opacity-100'
+        }`;
+        el.textContent = tok;
+        tokenStrip.appendChild(el);
+      });
+
+      // 3. Render Stack
+      const stackContainer = document.getElementById('stack-items');
+      const emptyPlaceholder = document.getElementById('stack-empty-placeholder');
+      document.getElementById('stack-count').textContent = `Size: ${step.stack.length}`;
+
+      stackContainer.innerHTML = '';
+      if (step.stack.length === 0) {
+        emptyPlaceholder.classList.remove('hidden');
+      } else {
+        emptyPlaceholder.classList.add('hidden');
+        step.stack.forEach((item, idx) => {
+          const isTop = idx === step.stack.length - 1;
+          const div = document.createElement('div');
+          const strItem = String(item);
+          div.className = `animate-stack-in w-full py-2.5 px-4 rounded-xl border font-mono text-sm font-bold flex items-center justify-between shadow-sm ${getTokenColorClasses(strItem)} ${
+            isTop ? 'ring-1 ring-blue-400/50' : ''
+          }`;
+          div.innerHTML = `
+            <span>${strItem}</span>
+            ${isTop ? '<span class="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-600 dark:text-blue-300">TOP</span>' : ''}
+          `;
+          stackContainer.appendChild(div);
+        });
+      }
+
+      // 4. Render Live Explanation
+      document.getElementById('action-badge').textContent = step.action;
+      document.getElementById('explanation-title').textContent = step.title;
+      document.getElementById('explanation-detail').textContent = step.detail;
+
+      // 5. Render Output Queue / Calculation History
+      const outputStrip = document.getElementById('output-strip');
+      outputStrip.innerHTML = '';
+
+      if (step.output.length === 0) {
+        const ph = document.createElement('span');
+        ph.className = 'text-xs text-slate-400 dark:text-slate-600 font-sans';
+        ph.textContent = state.mode.startsWith('eval')
+          ? 'Intermediate operations will appear here...'
+          : 'Output tokens will appear here...';
+        outputStrip.appendChild(ph);
+      } else {
+        step.output.forEach((outItem) => {
+          const badge = document.createElement('span');
+          const isEvalStep = state.mode.startsWith('eval');
+          badge.className = isEvalStep
+            ? 'animate-token-in px-3 py-1.5 rounded-lg text-xs font-mono font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 border border-indigo-500/25'
+            : `animate-token-in px-3 py-1.5 rounded-lg text-sm font-mono font-bold border ${getTokenColorClasses(outItem)}`;
+          badge.textContent = outItem;
+          outputStrip.appendChild(badge);
+        });
+      }
+
+      // 6. Final Result Banner
+      const finalBanner = document.getElementById('final-result-banner');
+      if (step.finalResult !== null) {
+        finalBanner.classList.remove('hidden');
+        document.getElementById('final-result-value').textContent = step.finalResult;
+      } else {
+        finalBanner.classList.add('hidden');
+      }
+    }
+
+    // =========================================================================
+    // 7. PLAYBACK & MODE CONTROLLERS
+    // =========================================================================
+    function stopPlayback() {
+      state.isPlaying = false;
+      if (state.timerId) {
+        clearInterval(state.timerId);
+        state.timerId = null;
+      }
+      document.getElementById('play-label').textContent = 'Play';
+      document.getElementById('play-icon').setAttribute('data-lucide', 'play');
+      lucide.createIcons();
+    }
+
+    function startPlayback() {
+      if (state.currentStep >= state.steps.length - 1) {
+        state.currentStep = 0;
+        renderCurrentStep();
+      }
+      state.isPlaying = true;
+      document.getElementById('play-label').textContent = 'Pause';
+      document.getElementById('play-icon').setAttribute('data-lucide', 'pause');
+      lucide.createIcons();
+
+      const intervalMs = Math.round(950 / state.speedMultiplier);
+      state.timerId = setInterval(() => {
+        if (state.currentStep < state.steps.length - 1) {
+          state.currentStep++;
+          renderCurrentStep();
+        } else {
+          stopPlayback();
+        }
+      }, intervalMs);
+    }
+
+    function loadExpression(exprText) {
+      stopPlayback();
+      const errorBanner = document.getElementById('error-banner');
+      errorBanner.classList.add('hidden');
+
+      try {
+        const normalized = normalizeExpression(exprText);
+        document.getElementById('expr-input').value = normalized;
+        const tokens = tokenize(normalized, state.mode);
+        state.expression = normalized;
+
+        if (state.mode === 'infix-to-postfix') {
+          state.steps = generateInfixToPostfixSteps(tokens);
+        } else if (state.mode === 'infix-to-prefix') {
+          state.steps = generateInfixToPrefixSteps(tokens);
+        } else if (state.mode === 'eval-postfix') {
+          state.steps = generatePostfixEvalSteps(tokens);
+        } else if (state.mode === 'eval-prefix') {
+          state.steps = generatePrefixEvalSteps(tokens);
+        }
+
+        state.currentStep = 0;
+        renderCurrentStep();
+
+        // Build and render Expression Tree
+        state.astRoot = buildExpressionTree(tokens, state.mode);
+        renderExpressionTree(state.astRoot);
+      } catch (err) {
+        document.getElementById('error-text').textContent = err.message;
+        errorBanner.classList.remove('hidden');
+      }
+    }
+
+    function updateModeUI(newMode) {
+      state.mode = newMode;
+      stopPlayback();
+
+      // Update Mode Tab styling
+      document.querySelectorAll('.mode-tab').forEach(btn => {
+        const active = btn.dataset.mode === newMode;
+        if (active) {
+          btn.classList.add('bg-white', 'dark:bg-slate-800', 'text-blue-600', 'dark:text-blue-400', 'shadow-sm');
+          btn.classList.remove('text-slate-600', 'dark:text-slate-400');
+        } else {
+          btn.classList.remove('bg-white', 'dark:bg-slate-800', 'text-blue-600', 'dark:text-blue-400', 'shadow-sm');
+          btn.classList.add('text-slate-600', 'dark:text-slate-400');
+        }
+      });
+
+      // Populate Presets Dropdown
+      const select = document.getElementById('preset-select');
+      select.innerHTML = '';
+      PRESETS[newMode].forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.value;
+        opt.textContent = p.label;
+        select.appendChild(opt);
+      });
+
+      // Update contextual labels & hints
+      const scanBadge = document.getElementById('scan-direction-badge');
+      const stackTitle = document.getElementById('stack-title');
+      const outputTitle = document.getElementById('output-title');
+      const finalLabel = document.getElementById('final-result-label');
+      const inputHint = document.getElementById('input-hint');
+      const algoNote = document.getElementById('algo-note-text');
+
+      if (newMode === 'infix-to-postfix') {
+        scanBadge.innerHTML = 'Scan: Left &rarr; Right';
+        stackTitle.textContent = 'Operator Stack';
+        outputTitle.textContent = 'Output Queue (Postfix)';
+        finalLabel.textContent = 'Final Postfix Expression:';
+        inputHint.textContent = '(e.g., (A + B) * (C - D))';
+        algoNote.textContent = 'Shunting-yard algorithm processes tokens Left-to-Right using operator precedence and associativity.';
+      } else if (newMode === 'infix-to-prefix') {
+        scanBadge.innerHTML = 'Scan: Right &rarr; Left';
+        stackTitle.textContent = 'Operator Stack';
+        outputTitle.textContent = 'Output Sequence (Prefix)';
+        finalLabel.textContent = 'Final Prefix Expression:';
+        inputHint.textContent = '(e.g., (A + B) * (C - D))';
+        algoNote.textContent = 'Scans Infix Right-to-Left (swapping parenthesis roles) and prepends tokens to produce Polish Notation.';
+      } else if (newMode === 'eval-postfix') {
+        scanBadge.innerHTML = 'Scan: Left &rarr; Right';
+        stackTitle.textContent = 'Operand Value Stack';
+        outputTitle.textContent = 'Evaluation Steps Log';
+        finalLabel.textContent = 'Evaluated Result:';
+        inputHint.textContent = '(space-separated numbers, e.g., 3 4 + 2 *)';
+        algoNote.textContent = 'Postfix evaluation pushes numbers and pops B then A on each operator to compute (A op B).';
+      } else if (newMode === 'eval-prefix') {
+        scanBadge.innerHTML = 'Scan: Right &rarr; Left';
+        stackTitle.textContent = 'Operand Value Stack';
+        outputTitle.textContent = 'Evaluation Steps Log';
+        finalLabel.textContent = 'Evaluated Result:';
+        inputHint.textContent = '(space-separated numbers, e.g., * + 3 4 2)';
+        algoNote.textContent = 'Prefix evaluation scans Right-to-Left, pushes numbers, and pops A then B on each operator to compute (A op B).';
+      }
+
+      const defaultExpr = PRESETS[newMode][0].value;
+      document.getElementById('expr-input').value = defaultExpr;
+      loadExpression(defaultExpr);
+    }
+
+    function updateViewUI(newView) {
+      state.view = newView;
+      document.querySelectorAll('.view-tab').forEach(btn => {
+        const active = btn.dataset.view === newView;
+        if (active) {
+          btn.classList.add('bg-white', 'dark:bg-slate-800', 'text-blue-600', 'dark:text-blue-400', 'shadow-sm');
+          btn.classList.remove('text-slate-600', 'dark:text-slate-400');
+        } else {
+          btn.classList.remove('bg-white', 'dark:bg-slate-800', 'text-blue-600', 'dark:text-blue-400', 'shadow-sm');
+          btn.classList.add('text-slate-600', 'dark:text-slate-400');
+        }
+      });
+
+      const stackView = document.getElementById('view-stack-container');
+      const treeView = document.getElementById('view-tree-container');
+      if (newView === 'stack') {
+        stackView.classList.remove('hidden');
+        treeView.classList.add('hidden');
+        treeView.classList.remove('flex');
+      } else {
+        stackView.classList.add('hidden');
+        treeView.classList.remove('hidden');
+        treeView.classList.add('flex');
+        renderExpressionTree(state.astRoot);
+      }
+    }
+
+    // =========================================================================
+    // 8. EVENT LISTENERS & INITIALIZATION
+    // =========================================================================
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+
+      // Mode selector buttons
+      document.querySelectorAll('.mode-tab').forEach(btn => {
+        btn.addEventListener('click', () => updateModeUI(btn.dataset.mode));
+      });
+
+      // View switcher buttons
+      document.querySelectorAll('.view-tab').forEach(btn => {
+        btn.addEventListener('click', () => updateViewUI(btn.dataset.view));
+      });
+
+      // Preset dropdown
+      document.getElementById('preset-select').addEventListener('change', (e) => {
+        document.getElementById('expr-input').value = e.target.value;
+        loadExpression(e.target.value);
+      });
+
+      // Load button & Enter key
+      document.getElementById('btn-load').addEventListener('click', () => {
+        loadExpression(document.getElementById('expr-input').value);
+      });
+      document.getElementById('expr-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') loadExpression(e.target.value);
+      });
+
+      // Playback buttons
+      document.getElementById('btn-play').addEventListener('click', () => {
+        if (state.isPlaying) stopPlayback();
+        else startPlayback();
+      });
+
+      document.getElementById('btn-next').addEventListener('click', () => {
+        stopPlayback();
+        if (state.currentStep < state.steps.length - 1) {
+          state.currentStep++;
+          renderCurrentStep();
+        }
+      });
+
+      document.getElementById('btn-prev').addEventListener('click', () => {
+        stopPlayback();
+        if (state.currentStep > 0) {
+          state.currentStep--;
+          renderCurrentStep();
+        }
+      });
+
+      document.getElementById('btn-reset').addEventListener('click', () => {
+        stopPlayback();
+        state.currentStep = 0;
+        renderCurrentStep();
+      });
+
+      // Speed slider
+      const speedMap = { 1: 0.5, 2: 0.75, 3: 1.0, 4: 1.5, 5: 2.5 };
+      document.getElementById('speed-slider').addEventListener('input', (e) => {
+        state.speedMultiplier = speedMap[e.target.value] || 1.0;
+        document.getElementById('speed-label').textContent = `${state.speedMultiplier}x`;
+        if (state.isPlaying) {
+          stopPlayback();
+          startPlayback();
+        }
+      });
+
+      // Copy output button (uses document.execCommand('copy') for iframe compatibility)
+      document.getElementById('btn-copy-output').addEventListener('click', () => {
+        const step = state.steps[state.currentStep];
+        if (!step || step.output.length === 0) return;
+        const textToCopy = step.finalResult !== null ? step.finalResult : step.output.join(' ');
+        const tempInput = document.createElement('textarea');
+        tempInput.value = textToCopy;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+
+        const copyLabel = document.getElementById('copy-label');
+        copyLabel.textContent = 'Copied!';
+        setTimeout(() => { copyLabel.textContent = 'Copy'; }, 1500);
+      });
+
+      // Tree traversal animation buttons
+      document.querySelectorAll('.traversal-btn').forEach(btn => {
+        btn.addEventListener('click', () => animateTreeTraversal(btn.dataset.traversal));
+      });
+
+      // Theme toggle
+      document.getElementById('btn-theme').addEventListener('click', () => {
+        document.documentElement.classList.toggle('dark');
+        if (state.view === 'tree') renderExpressionTree(state.astRoot);
+      });
+
+      // Help modal toggle
+      const helpModal = document.getElementById('help-modal');
+      document.getElementById('btn-help').addEventListener('click', () => helpModal.classList.remove('hidden'));
+      document.getElementById('btn-close-help').addEventListener('click', () => helpModal.classList.add('hidden'));
+      helpModal.addEventListener('click', (e) => {
+        if (e.target === helpModal) helpModal.classList.add('hidden');
+      });
+
+      // Initialize default mode & view
+      updateViewUI('stack');
+      updateModeUI('infix-to-postfix');
+    });
+  </script>
+</body>
+</html>
